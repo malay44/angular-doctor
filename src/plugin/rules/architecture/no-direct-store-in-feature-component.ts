@@ -24,7 +24,6 @@ export const noDirectStoreInFeatureComponent = createRule({
         // Flag if importing from a store/state path without going through a facade
         const isStoreImport = /[Ss]tore|[Ss]tate/.test(source);
         const isFacade = /facade/i.test(source);
-        const isSameFeature = !source.startsWith("..") || source.split("..").length <= 2;
 
         if (isStoreImport && !isFacade) {
           context.report({

@@ -16,36 +16,35 @@ export const noInjectOutsideInjectionContext = createRule({
   },
   defaultOptions: [],
   create(context) {
-    // Track whether we're inside a class field initializer or constructor
-    const methodStack: string[] = [];
+    const scopeStack: string[] = [];
 
     return {
       MethodDefinition(node) {
-        const kind = node.kind;
-        const name =
-          node.key.type === "Identifier" ? node.key.name : "method";
-        if (kind === "constructor") {
-          methodStack.push("constructor");
-        } else {
-          methodStack.push(name);
-        }
+        const name = node.key.type === "Identifier" ? node.key.name : "method";
+        scopeStack.push(node.kind === "constructor" ? "constructor" : name);
       },
       "MethodDefinition:exit"() {
-        methodStack.pop();
+        scopeStack.pop();
+      },
+      ArrowFunctionExpression() {
+        if (scopeStack.length > 0) scopeStack.push("callback");
+      },
+      "ArrowFunctionExpression:exit"() {
+        if (scopeStack.length > 0 && scopeStack[scopeStack.length - 1] === "callback") scopeStack.pop();
+      },
+      FunctionExpression(node) {
+        if (scopeStack.length > 0 && node.parent?.type !== "MethodDefinition") {
+          scopeStack.push("callback");
+        }
+      },
+      "FunctionExpression:exit"(node) {
+        if (scopeStack.length > 0 && scopeStack[scopeStack.length - 1] === "callback") scopeStack.pop();
       },
       CallExpression(node) {
-        if (
-          node.callee.type === "Identifier" &&
-          node.callee.name === "inject"
-        ) {
-          const currentContext = methodStack[methodStack.length - 1];
-          if (currentContext && currentContext !== "constructor") {
-            context.report({
-              node,
-              messageId: "outsideContext",
-              data: { context: currentContext },
-            });
-          }
+        if (node.callee.type !== "Identifier" || node.callee.name !== "inject") return;
+        const top = scopeStack[scopeStack.length - 1];
+        if (top && top !== "constructor") {
+          context.report({ node, messageId: "outsideContext", data: { context: top } });
         }
       },
     };

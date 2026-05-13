@@ -8,6 +8,8 @@ import { preferProvideHttpClient } from "./rules/modernization/prefer-provide-ht
 import { requireProvideZoneless } from "./rules/modernization/require-provide-zoneless.js";
 import { preferSignalInput } from "./rules/modernization/prefer-signal-input.js";
 import { preferSignalOutput } from "./rules/modernization/prefer-signal-output.js";
+import { preferSignalQuery } from "./rules/modernization/prefer-signal-query.js";
+import { preferInjectFn } from "./rules/modernization/prefer-inject-fn.js";
 
 // Correctness
 import { noSideEffectInComputed } from "./rules/correctness/no-side-effect-in-computed.js";
@@ -15,6 +17,7 @@ import { effectNeedsCleanup } from "./rules/correctness/effect-needs-cleanup.js"
 import { noInjectOutsideInjectionContext } from "./rules/correctness/no-inject-outside-injection-context.js";
 import { noAsyncPipeOnSignal } from "./rules/correctness/no-async-pipe-on-signal.js";
 import { noHttpCallWithoutCatchError } from "./rules/correctness/no-http-call-without-catch-error.js";
+import { noAsyncLifecycleMethod } from "./rules/correctness/no-async-lifecycle-method.js";
 
 // Performance
 import { noZoneJsInZonelessApp } from "./rules/performance/no-zone-js-in-zoneless-app.js";
@@ -66,6 +69,8 @@ export const angularDoctorPlugin = {
     "require-provide-zoneless-change-detection": requireProvideZoneless,
     "prefer-signal-input": preferSignalInput,
     "prefer-signal-output": preferSignalOutput,
+    "prefer-signal-query": preferSignalQuery,
+    "prefer-inject-fn": preferInjectFn,
 
     // Correctness
     "no-side-effect-in-computed": noSideEffectInComputed,
@@ -73,6 +78,7 @@ export const angularDoctorPlugin = {
     "no-inject-outside-injection-context": noInjectOutsideInjectionContext,
     "no-async-pipe-on-signal": noAsyncPipeOnSignal,
     "no-http-call-without-catch-error": noHttpCallWithoutCatchError,
+    "no-async-lifecycle-method": noAsyncLifecycleMethod,
 
     // Performance
     "no-zone-js-in-zoneless-app": noZoneJsInZonelessApp,
@@ -120,11 +126,14 @@ export const PLUGIN_RULE_CATEGORY_MAP: Record<string, string> = {
   "angular-doctor/require-provide-zoneless-change-detection": "Modernization",
   "angular-doctor/prefer-signal-input": "Modernization",
   "angular-doctor/prefer-signal-output": "Modernization",
+  "angular-doctor/prefer-signal-query": "Modernization",
+  "angular-doctor/prefer-inject-fn": "Modernization",
   "angular-doctor/no-side-effect-in-computed": "Correctness",
   "angular-doctor/effect-needs-cleanup": "Correctness",
   "angular-doctor/no-inject-outside-injection-context": "Correctness",
   "angular-doctor/no-async-pipe-on-signal": "Correctness",
   "angular-doctor/no-http-call-without-catch-error": "Correctness",
+  "angular-doctor/no-async-lifecycle-method": "Correctness",
   "angular-doctor/no-zone-js-in-zoneless-app": "Performance",
   "angular-doctor/prefer-computed-over-effect": "Performance",
   "angular-doctor/no-inline-object-on-onpush-child": "Performance",
@@ -159,11 +168,14 @@ export const PLUGIN_RULE_SEVERITY_MAP: Record<string, "error" | "warning"> = {
   "angular-doctor/require-provide-zoneless-change-detection": "warning",
   "angular-doctor/prefer-signal-input": "warning",
   "angular-doctor/prefer-signal-output": "warning",
+  "angular-doctor/prefer-signal-query": "warning",
+  "angular-doctor/prefer-inject-fn": "warning",
   "angular-doctor/no-side-effect-in-computed": "error",
   "angular-doctor/effect-needs-cleanup": "error",
   "angular-doctor/no-inject-outside-injection-context": "error",
   "angular-doctor/no-async-pipe-on-signal": "error",
   "angular-doctor/no-http-call-without-catch-error": "warning",
+  "angular-doctor/no-async-lifecycle-method": "error",
   "angular-doctor/no-zone-js-in-zoneless-app": "error",
   "angular-doctor/prefer-computed-over-effect": "warning",
   "angular-doctor/no-inline-object-on-onpush-child": "warning",
@@ -205,6 +217,10 @@ export const PLUGIN_RULE_HELP_MAP: Record<string, string> = {
     "Replace `@Input() prop: T` with `prop = input<T>()` or `prop = input.required<T>()`",
   "angular-doctor/prefer-signal-output":
     "Replace `@Output() event = new EventEmitter<T>()` with `event = output<T>()`",
+  "angular-doctor/prefer-signal-query":
+    "Replace `@ViewChild(MyComp) myRef!: MyComp` with `myRef = viewChild(MyComp)` — no more `ngAfterViewInit` required",
+  "angular-doctor/prefer-inject-fn":
+    "Replace constructor injection: `constructor(private svc: MyService)` → `private svc = inject(MyService)`",
   "angular-doctor/no-side-effect-in-computed":
     "Move signal writes to `effect()`, keep `computed()` pure",
   "angular-doctor/effect-needs-cleanup":
@@ -231,6 +247,8 @@ export const PLUGIN_RULE_HELP_MAP: Record<string, string> = {
     "Use httpOnly cookies or keep tokens in memory via an `AuthService`",
   "angular-doctor/no-http-call-without-catch-error":
     "Add `.pipe(catchError(err => { ... }))` to handle HTTP failures and prevent uncaught errors",
+  "angular-doctor/no-async-lifecycle-method":
+    "Angular ignores the returned Promise. Use `ngOnInit() { this.data$ = this.svc.load(); }` and subscribe in the template with `| async` or use signals.",
   "angular-doctor/no-dynamic-script-src":
     "Use a static allowlist for script URLs; never assign user/storage-sourced URLs to script.src",
   "angular-doctor/require-xsrf-protection":

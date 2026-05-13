@@ -378,14 +378,29 @@ const buildEslintConfig = (
   useTypeAware: boolean,
   packagePresence: PackagePresence,
 ): Linter.Config[] => {
+  // Angular workspaces split sources across tsconfig.app.json / tsconfig.spec.json.
+  // Using only tsconfig.json (which has no `include`) causes "file not in project"
+  // parse errors on every file.  Build a multi-project list covering all sources.
+  const resolveTypeAwareProjects = (): string[] | undefined => {
+    if (!hasTypeScript || !tsconfigPath || !useTypeAware) return undefined;
+    const dir = path.dirname(tsconfigPath);
+    const candidates = ["tsconfig.app.json", "tsconfig.spec.json", "tsconfig.lib.json", "tsconfig.json"];
+    const found = candidates
+      .map((c) => path.join(dir, c))
+      .filter((p) => fs.existsSync(p));
+    // Prefer specific tsconfigs that actually include files; fall back to root
+    const specific = found.filter((p) => !p.endsWith("tsconfig.json"));
+    return specific.length > 0 ? specific : found.length > 0 ? found : undefined;
+  };
+
+  const typeAwareProjects = resolveTypeAwareProjects();
+
   const languageOptions: Linter.Config["languageOptions"] = {
     parser: tsEslint.parser as Linter.Parser,
     parserOptions: {
       ecmaVersion: "latest",
       sourceType: "module",
-      ...(hasTypeScript && tsconfigPath && useTypeAware
-        ? { project: tsconfigPath }
-        : {}),
+      ...(typeAwareProjects ? { project: typeAwareProjects } : {}),
     },
   };
 
@@ -489,7 +504,10 @@ const buildEslintConfig = (
     "angular-doctor/require-provide-zoneless-change-detection": "warn",
     "angular-doctor/prefer-signal-input": "warn",
     "angular-doctor/prefer-signal-output": "warn",
+    "angular-doctor/prefer-signal-query": "warn",
+    "angular-doctor/prefer-inject-fn": "warn",
     // Correctness
+    "angular-doctor/no-async-lifecycle-method": "error",
     "angular-doctor/no-side-effect-in-computed": "error",
     "angular-doctor/effect-needs-cleanup": "error",
     "angular-doctor/no-inject-outside-injection-context": "error",
