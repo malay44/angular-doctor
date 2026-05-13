@@ -6,12 +6,15 @@ import { preferFunctionalRouterGuard } from "./rules/modernization/prefer-functi
 import { preferFunctionalInterceptor } from "./rules/modernization/prefer-functional-interceptor.js";
 import { preferProvideHttpClient } from "./rules/modernization/prefer-provide-http-client.js";
 import { requireProvideZoneless } from "./rules/modernization/require-provide-zoneless.js";
+import { preferSignalInput } from "./rules/modernization/prefer-signal-input.js";
+import { preferSignalOutput } from "./rules/modernization/prefer-signal-output.js";
 
 // Correctness
 import { noSideEffectInComputed } from "./rules/correctness/no-side-effect-in-computed.js";
 import { effectNeedsCleanup } from "./rules/correctness/effect-needs-cleanup.js";
 import { noInjectOutsideInjectionContext } from "./rules/correctness/no-inject-outside-injection-context.js";
 import { noAsyncPipeOnSignal } from "./rules/correctness/no-async-pipe-on-signal.js";
+import { noHttpCallWithoutCatchError } from "./rules/correctness/no-http-call-without-catch-error.js";
 
 // Performance
 import { noZoneJsInZonelessApp } from "./rules/performance/no-zone-js-in-zoneless-app.js";
@@ -24,6 +27,8 @@ import { noBypassSecurityTrust } from "./rules/security/no-bypass-security-trust
 import { noEvalOrFunction } from "./rules/security/no-eval-or-function.js";
 import { noSecretsInSource } from "./rules/security/no-secrets-in-source.js";
 import { noLocalStorageTokenWrite } from "./rules/security/no-localstorage-token-write.js";
+import { noDynamicScriptSrc } from "./rules/security/no-dynamic-script-src.js";
+import { requireXsrfProtection } from "./rules/security/require-xsrf-protection.js";
 
 // Architecture
 import { noHttpClientInComponent } from "./rules/architecture/no-http-client-in-component.js";
@@ -56,12 +61,15 @@ export const angularDoctorPlugin = {
     "prefer-functional-interceptor": preferFunctionalInterceptor,
     "prefer-provide-http-client": preferProvideHttpClient,
     "require-provide-zoneless-change-detection": requireProvideZoneless,
+    "prefer-signal-input": preferSignalInput,
+    "prefer-signal-output": preferSignalOutput,
 
     // Correctness
     "no-side-effect-in-computed": noSideEffectInComputed,
     "effect-needs-cleanup": effectNeedsCleanup,
     "no-inject-outside-injection-context": noInjectOutsideInjectionContext,
     "no-async-pipe-on-signal": noAsyncPipeOnSignal,
+    "no-http-call-without-catch-error": noHttpCallWithoutCatchError,
 
     // Performance
     "no-zone-js-in-zoneless-app": noZoneJsInZonelessApp,
@@ -74,6 +82,8 @@ export const angularDoctorPlugin = {
     "no-eval-or-function": noEvalOrFunction,
     "no-secrets-in-source": noSecretsInSource,
     "no-localstorage-token-write": noLocalStorageTokenWrite,
+    "no-dynamic-script-src": noDynamicScriptSrc,
+    "require-xsrf-protection": requireXsrfProtection,
 
     // Architecture
     "http-client-only-via-api-service": noHttpClientInComponent,
@@ -102,10 +112,13 @@ export const PLUGIN_RULE_CATEGORY_MAP: Record<string, string> = {
   "angular-doctor/prefer-functional-interceptor": "Modernization",
   "angular-doctor/prefer-provide-http-client": "Modernization",
   "angular-doctor/require-provide-zoneless-change-detection": "Modernization",
+  "angular-doctor/prefer-signal-input": "Modernization",
+  "angular-doctor/prefer-signal-output": "Modernization",
   "angular-doctor/no-side-effect-in-computed": "Correctness",
   "angular-doctor/effect-needs-cleanup": "Correctness",
   "angular-doctor/no-inject-outside-injection-context": "Correctness",
   "angular-doctor/no-async-pipe-on-signal": "Correctness",
+  "angular-doctor/no-http-call-without-catch-error": "Correctness",
   "angular-doctor/no-zone-js-in-zoneless-app": "Performance",
   "angular-doctor/prefer-computed-over-effect": "Performance",
   "angular-doctor/no-inline-object-on-onpush-child": "Performance",
@@ -114,6 +127,8 @@ export const PLUGIN_RULE_CATEGORY_MAP: Record<string, string> = {
   "angular-doctor/no-eval-or-function": "Security",
   "angular-doctor/no-secrets-in-source": "Security",
   "angular-doctor/no-localstorage-token-write": "Security",
+  "angular-doctor/no-dynamic-script-src": "Security",
+  "angular-doctor/require-xsrf-protection": "Security",
   "angular-doctor/http-client-only-via-api-service": "Architecture",
   "angular-doctor/no-barrel-files": "Architecture",
   "angular-doctor/forbidden-imports": "Architecture",
@@ -133,10 +148,13 @@ export const PLUGIN_RULE_SEVERITY_MAP: Record<string, "error" | "warning"> = {
   "angular-doctor/prefer-functional-interceptor": "warning",
   "angular-doctor/prefer-provide-http-client": "error",
   "angular-doctor/require-provide-zoneless-change-detection": "warning",
+  "angular-doctor/prefer-signal-input": "warning",
+  "angular-doctor/prefer-signal-output": "warning",
   "angular-doctor/no-side-effect-in-computed": "error",
   "angular-doctor/effect-needs-cleanup": "error",
   "angular-doctor/no-inject-outside-injection-context": "error",
   "angular-doctor/no-async-pipe-on-signal": "error",
+  "angular-doctor/no-http-call-without-catch-error": "warning",
   "angular-doctor/no-zone-js-in-zoneless-app": "error",
   "angular-doctor/prefer-computed-over-effect": "warning",
   "angular-doctor/no-inline-object-on-onpush-child": "warning",
@@ -145,6 +163,8 @@ export const PLUGIN_RULE_SEVERITY_MAP: Record<string, "error" | "warning"> = {
   "angular-doctor/no-eval-or-function": "error",
   "angular-doctor/no-secrets-in-source": "error",
   "angular-doctor/no-localstorage-token-write": "warning",
+  "angular-doctor/no-dynamic-script-src": "error",
+  "angular-doctor/require-xsrf-protection": "warning",
   "angular-doctor/http-client-only-via-api-service": "warning",
   "angular-doctor/no-barrel-files": "warning",
   "angular-doctor/forbidden-imports": "error",
@@ -169,6 +189,10 @@ export const PLUGIN_RULE_HELP_MAP: Record<string, string> = {
     "Replace `HttpClientModule` with `provideHttpClient()` in app.config.ts",
   "angular-doctor/require-provide-zoneless-change-detection":
     "Add `provideZonelessChangeDetection()` to your ApplicationConfig providers",
+  "angular-doctor/prefer-signal-input":
+    "Replace `@Input() prop: T` with `prop = input<T>()` or `prop = input.required<T>()`",
+  "angular-doctor/prefer-signal-output":
+    "Replace `@Output() event = new EventEmitter<T>()` with `event = output<T>()`",
   "angular-doctor/no-side-effect-in-computed":
     "Move signal writes to `effect()`, keep `computed()` pure",
   "angular-doctor/effect-needs-cleanup":
@@ -193,6 +217,12 @@ export const PLUGIN_RULE_HELP_MAP: Record<string, string> = {
     "Move secrets to environment variables or inject via `InjectionToken`",
   "angular-doctor/no-localstorage-token-write":
     "Use httpOnly cookies or keep tokens in memory via an `AuthService`",
+  "angular-doctor/no-http-call-without-catch-error":
+    "Add `.pipe(catchError(err => { ... }))` to handle HTTP failures and prevent uncaught errors",
+  "angular-doctor/no-dynamic-script-src":
+    "Use a static allowlist for script URLs; never assign user/storage-sourced URLs to script.src",
+  "angular-doctor/require-xsrf-protection":
+    "Add `withXsrfProtection()` to `provideHttpClient(withXsrfProtection())` in app.config.ts",
   "angular-doctor/http-client-only-via-api-service":
     "Create `<feature>-api.service.ts`, inject `HttpClient` there, and inject the api service in the component",
   "angular-doctor/no-barrel-files":

@@ -487,11 +487,14 @@ const buildEslintConfig = (
     "angular-doctor/prefer-functional-interceptor": "warn",
     "angular-doctor/prefer-provide-http-client": "error",
     "angular-doctor/require-provide-zoneless-change-detection": "warn",
+    "angular-doctor/prefer-signal-input": "warn",
+    "angular-doctor/prefer-signal-output": "warn",
     // Correctness
     "angular-doctor/no-side-effect-in-computed": "error",
     "angular-doctor/effect-needs-cleanup": "error",
     "angular-doctor/no-inject-outside-injection-context": "error",
     "angular-doctor/no-async-pipe-on-signal": "error",
+    "angular-doctor/no-http-call-without-catch-error": "warn",
     // Performance
     "angular-doctor/no-zone-js-in-zoneless-app": "error",
     "angular-doctor/prefer-computed-over-effect": "warn",
@@ -502,6 +505,8 @@ const buildEslintConfig = (
     "angular-doctor/no-eval-or-function": "error",
     "angular-doctor/no-secrets-in-source": "error",
     "angular-doctor/no-localstorage-token-write": "warn",
+    "angular-doctor/no-dynamic-script-src": "error",
+    "angular-doctor/require-xsrf-protection": "warn",
     // Architecture
     "angular-doctor/http-client-only-via-api-service": "warn",
     "angular-doctor/no-barrel-files": "warn",
@@ -658,35 +663,43 @@ export const runEslint = async (
   const errors: LintError[] = [];
   try {
     results = await eslint.lintFiles(patterns);
-  } catch (error) {
-    // Capture parse errors and other ESLint failures as diagnostics
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorStack = error instanceof Error ? error.stack : undefined;
+  } catch (firstError) {
+    const firstMsg = firstError instanceof Error ? firstError.message : String(firstError);
 
-    // Try to extract file path from error message
-    const filePathMatch = errorMessage.match(/^(.+?):\s* /);
-    const errorFilePath = filePathMatch ? path.relative(rootDirectory, filePathMatch[1]) : undefined;
+    // ENOENT: a file in the glob result doesn't exist on disk (common in monorepos
+    // where git tracks files from sibling projects that aren't checked out).
+    // Retry with src/**/*.ts which is the canonical Angular source root.
+    if (firstMsg.includes("ENOENT") && !includePaths) {
+      const srcPatterns = ["src/**/*.ts", "projects/**/*.ts", "libs/**/*.ts", "packages/**/*.ts"];
+      try {
+        results = await eslint.lintFiles(srcPatterns);
+      } catch (retryError) {
+        const errorMessage = retryError instanceof Error ? retryError.message : String(retryError);
+        errors.push({ message: errorMessage });
+        return { diagnostics: [], errors };
+      }
+    } else {
+      const errorMessage = firstMsg;
+      const filePathMatch = errorMessage.match(/^(.+?):\s* /);
+      const errorFilePath = filePathMatch
+        ? path.relative(rootDirectory, filePathMatch[1])
+        : undefined;
 
-    errors.push({
-      message: errorMessage,
-      stack: errorStack,
-      filePath: errorFilePath,
-    });
+      errors.push({ message: errorMessage, filePath: errorFilePath });
 
-    // Create a diagnostic for the parse error
-    const parseErrorDiagnostic: Diagnostic = {
-      filePath: errorFilePath ?? "unknown",
-      plugin: "eslint",
-      rule: "parse-error",
-      severity: "error",
-      message: errorMessage,
-      help: "Fix the syntax error in this file. ESLint could not parse the file.",
-      line: 0,
-      column: 0,
-      category: "Parse Error",
-    };
-
-    return { diagnostics: [parseErrorDiagnostic], errors };
+      const parseErrorDiagnostic: Diagnostic = {
+        filePath: errorFilePath ?? "unknown",
+        plugin: "eslint",
+        rule: "parse-error",
+        severity: "error",
+        message: errorMessage,
+        help: "Fix the syntax error in this file. ESLint could not parse the file.",
+        line: 0,
+        column: 0,
+        category: "Parse Error",
+      };
+      return { diagnostics: [parseErrorDiagnostic], errors };
+    }
   }
 
   const diagnostics: Diagnostic[] = [];
