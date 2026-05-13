@@ -29,11 +29,14 @@ import { noSecretsInSource } from "./rules/security/no-secrets-in-source.js";
 import { noLocalStorageTokenWrite } from "./rules/security/no-localstorage-token-write.js";
 import { noDynamicScriptSrc } from "./rules/security/no-dynamic-script-src.js";
 import { requireXsrfProtection } from "./rules/security/require-xsrf-protection.js";
+import { noOpenRedirect } from "./rules/security/no-open-redirect.js";
+import { noDevTokenFile } from "./rules/security/no-dev-token-file.js";
 
 // Architecture
 import { noHttpClientInComponent } from "./rules/architecture/no-http-client-in-component.js";
 import { noBarrelFiles } from "./rules/architecture/no-barrel-files.js";
 import { forbiddenImports } from "./rules/architecture/forbidden-imports.js";
+import { noDirectStoreInFeatureComponent } from "./rules/architecture/no-direct-store-in-feature-component.js";
 
 // Smells (Refactoring Guru)
 import { noLargeClass } from "./rules/smells/no-large-class.js";
@@ -84,11 +87,14 @@ export const angularDoctorPlugin = {
     "no-localstorage-token-write": noLocalStorageTokenWrite,
     "no-dynamic-script-src": noDynamicScriptSrc,
     "require-xsrf-protection": requireXsrfProtection,
+    "no-open-redirect": noOpenRedirect,
+    "no-dev-token-file": noDevTokenFile,
 
     // Architecture
     "http-client-only-via-api-service": noHttpClientInComponent,
     "no-barrel-files": noBarrelFiles,
     "forbidden-imports": forbiddenImports,
+    "no-direct-store-in-feature-component": noDirectStoreInFeatureComponent,
 
     // Smells
     "no-large-class": noLargeClass,
@@ -129,9 +135,12 @@ export const PLUGIN_RULE_CATEGORY_MAP: Record<string, string> = {
   "angular-doctor/no-localstorage-token-write": "Security",
   "angular-doctor/no-dynamic-script-src": "Security",
   "angular-doctor/require-xsrf-protection": "Security",
+  "angular-doctor/no-open-redirect": "Security",
+  "angular-doctor/no-dev-token-file": "Security",
   "angular-doctor/http-client-only-via-api-service": "Architecture",
   "angular-doctor/no-barrel-files": "Architecture",
   "angular-doctor/forbidden-imports": "Architecture",
+  "angular-doctor/no-direct-store-in-feature-component": "Architecture",
   "angular-doctor/no-large-class": "Code Smells",
   "angular-doctor/no-long-method": "Code Smells",
   "angular-doctor/no-long-parameter-list": "Code Smells",
@@ -165,9 +174,12 @@ export const PLUGIN_RULE_SEVERITY_MAP: Record<string, "error" | "warning"> = {
   "angular-doctor/no-localstorage-token-write": "warning",
   "angular-doctor/no-dynamic-script-src": "error",
   "angular-doctor/require-xsrf-protection": "warning",
+  "angular-doctor/no-open-redirect": "error",
+  "angular-doctor/no-dev-token-file": "error",
   "angular-doctor/http-client-only-via-api-service": "warning",
   "angular-doctor/no-barrel-files": "warning",
   "angular-doctor/forbidden-imports": "error",
+  "angular-doctor/no-direct-store-in-feature-component": "warning",
   "angular-doctor/no-large-class": "warning",
   "angular-doctor/no-long-method": "warning",
   "angular-doctor/no-long-parameter-list": "warning",
@@ -223,12 +235,18 @@ export const PLUGIN_RULE_HELP_MAP: Record<string, string> = {
     "Use a static allowlist for script URLs; never assign user/storage-sourced URLs to script.src",
   "angular-doctor/require-xsrf-protection":
     "Add `withXsrfProtection()` to `provideHttpClient(withXsrfProtection())` in app.config.ts",
+  "angular-doctor/no-open-redirect":
+    "Validate redirect URLs against an allowlist: `const SAFE = new Set(['/dashboard']); if (!SAFE.has(url)) throw new Error('unsafe redirect');`",
+  "angular-doctor/no-dev-token-file":
+    "Remove dev token injection files before deploying. Use server-side session setup or environment-specific auth flows instead.",
   "angular-doctor/http-client-only-via-api-service":
     "Create `<feature>-api.service.ts`, inject `HttpClient` there, and inject the api service in the component",
   "angular-doctor/no-barrel-files":
     "Use direct relative imports instead of `index.ts` re-exports",
   "angular-doctor/forbidden-imports":
     "Remove the forbidden import and use the approved alternative",
+  "angular-doctor/no-direct-store-in-feature-component":
+    "Create a `<feature>-facade.service.ts` that wraps store access, and inject the facade in the component instead.",
   "angular-doctor/no-large-class":
     "Split into smaller focused classes: facade service + api service + state signal",
   "angular-doctor/no-long-method":

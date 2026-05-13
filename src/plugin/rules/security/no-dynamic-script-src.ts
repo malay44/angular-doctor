@@ -13,7 +13,10 @@ export const noDynamicScriptSrc = createRule({
   },
   defaultOptions: [],
   create(context) {
-    const isStorageAccess = (node: TSESTree.Node): boolean => {
+    // Track variables assigned from document.createElement('script')
+    const scriptVarNames = new Set<string>();
+
+    const isStorageAccess = (node: import("@typescript-eslint/utils").TSESTree.Node): boolean => {
       if (node.type !== "CallExpression") return false;
       const callee = node.callee;
       return (
@@ -25,22 +28,41 @@ export const noDynamicScriptSrc = createRule({
       );
     };
 
-    const isScriptObject = (node: TSESTree.Node): boolean => {
+    const isScriptVar = (node: import("@typescript-eslint/utils").TSESTree.Node): boolean => {
       if (node.type === "Identifier") {
-        return /script/i.test(node.name);
+        return /script/i.test(node.name) || scriptVarNames.has(node.name);
       }
       return false;
     };
 
+    const isDynamic = (node: import("@typescript-eslint/utils").TSESTree.Node): boolean =>
+      !(node.type === "Literal" && typeof (node as { value: unknown }).value === "string");
+
     return {
+      // Track: const el = document.createElement('script')
+      VariableDeclarator(node) {
+        if (!node.init || node.init.type !== "CallExpression") return;
+        const call = node.init;
+        if (
+          call.callee.type === "MemberExpression" &&
+          call.callee.object.type === "Identifier" &&
+          call.callee.object.name === "document" &&
+          call.callee.property.type === "Identifier" &&
+          call.callee.property.name === "createElement" &&
+          call.arguments[0]?.type === "Literal" &&
+          String((call.arguments[0] as { value: unknown }).value).toLowerCase() === "script" &&
+          node.id.type === "Identifier"
+        ) {
+          scriptVarNames.add(node.id.name);
+        }
+      },
       AssignmentExpression(node) {
         if (node.left.type !== "MemberExpression") return;
         const member = node.left;
         if (member.property.type !== "Identifier" || member.property.name !== "src") return;
-        // Only flag if RHS is dynamic (not a string literal)
-        if (node.right.type === "Literal" && typeof (node.right as TSESTree.Literal).value === "string") return;
+        if (!isDynamic(node.right)) return;
 
-        const isScript = isScriptObject(member.object);
+        const isScript = isScriptVar(member.object);
         const isFromStorage = isStorageAccess(node.right);
 
         if (isScript || isFromStorage) {

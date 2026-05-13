@@ -135,6 +135,60 @@ const checkForZoneJsInAngularJson = (rootDirectory: string, diagnostics: Diagnos
   }
 };
 
+const checkHtmlDevTokenFiles = (rootDirectory: string, diagnostics: Diagnostic[]): void => {
+  const publicDir = path.join(rootDirectory, "public");
+  if (!fs.existsSync(publicDir)) return;
+
+  const htmlFiles = fs.readdirSync(publicDir, { withFileTypes: true })
+    .filter((f) => f.isFile() && f.name.endsWith(".html"));
+
+  for (const file of htmlFiles) {
+    const fullPath = path.join(publicDir, file.name);
+    const content = fs.readFileSync(fullPath, "utf-8");
+    const lines = content.split("\n");
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const storageMatch = line.match(/(sessionStorage|localStorage)\.setItem/);
+      if (storageMatch) {
+        diagnostics.push({
+          filePath: path.relative(rootDirectory, fullPath),
+          plugin: "angular-doctor",
+          rule: "no-dev-token-file",
+          severity: "error",
+          message: `\`${storageMatch[1]}.setItem(...)\` in plain HTML file \`${file.name}\`. Dev token injection files allow session hijacking if deployed to production. Remove before shipping.`,
+          help: "Remove dev token injection files before deploying. Use server-side session setup or environment-specific auth flows instead.",
+          line: i + 1,
+          column: line.indexOf(storageMatch[1]) + 1,
+          category: "Security",
+        });
+      }
+
+      // location.replace(variable) — only flag non-literal args (heuristic: not a string literal)
+      const redirectMatch = line.match(/location\.(replace|assign)\(([^)]+)\)/);
+      if (redirectMatch) {
+        const arg = redirectMatch[2].trim();
+        const isLiteral = (arg.startsWith("'") && arg.endsWith("'")) ||
+                          (arg.startsWith('"') && arg.endsWith('"')) ||
+                          (arg.startsWith('`') && arg.endsWith('`'));
+        if (!isLiteral) {
+          diagnostics.push({
+            filePath: path.relative(rootDirectory, fullPath),
+            plugin: "angular-doctor",
+            rule: "no-open-redirect",
+            severity: "error",
+            message: `Unvalidated redirect via \`location.${redirectMatch[1]}()\` — if this value comes from user input or URL params, this is an open redirect. Validate the URL against an allowlist before redirecting.`,
+            help: "Validate redirect URLs against an allowlist before calling location.replace/assign.",
+            line: i + 1,
+            column: line.indexOf("location.") + 1,
+            category: "Security",
+          });
+        }
+      }
+    }
+  }
+};
+
 const findInDirectory = (dir: string, searchString: string): boolean => {
   try {
     const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -160,6 +214,7 @@ export const runConfigChecks = async (
   checkAngularJson(rootDirectory, diagnostics);
   checkTsConfig(rootDirectory, diagnostics);
   checkForZoneJsInAngularJson(rootDirectory, diagnostics);
+  checkHtmlDevTokenFiles(rootDirectory, diagnostics);
 
   return { diagnostics, skipped: false };
 };

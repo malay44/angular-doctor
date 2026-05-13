@@ -507,9 +507,12 @@ const buildEslintConfig = (
     "angular-doctor/no-localstorage-token-write": "warn",
     "angular-doctor/no-dynamic-script-src": "error",
     "angular-doctor/require-xsrf-protection": "warn",
+    "angular-doctor/no-open-redirect": "error",
+    "angular-doctor/no-dev-token-file": "error",
     // Architecture
     "angular-doctor/http-client-only-via-api-service": "warn",
     "angular-doctor/no-barrel-files": "warn",
+    "angular-doctor/no-direct-store-in-feature-component": "warn",
     // Code Smells
     "angular-doctor/no-large-class": "warn",
     "angular-doctor/no-long-method": "warn",
