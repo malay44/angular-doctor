@@ -442,11 +442,12 @@ const buildEslintConfig = (
   };
 
   // Signals rules (Angular 17+ only - conditional)
+  // no-uncalled-signals requires type information — only enable with type-aware lint
   const signalsRules: Linter.RulesRecord = packagePresence.hasSignals
     ? {
         "@angular-eslint/prefer-signals": "warn",
         "@angular-eslint/prefer-signal-model": "warn",
-        "@angular-eslint/no-uncalled-signals": "error",
+        ...(useTypeAware ? { "@angular-eslint/no-uncalled-signals": "error" } : {}),
       }
     : {};
 
@@ -454,7 +455,6 @@ const buildEslintConfig = (
   const tsRules: Linter.RulesRecord = {
     "@typescript-eslint/no-explicit-any": "warn",
     "@typescript-eslint/no-unused-vars": "warn",
-    "@typescript-eslint/sort-keys": "warn",
   };
 
   // NgRx rules (conditional - only if @ngrx packages present)
@@ -476,13 +476,8 @@ const buildEslintConfig = (
       }
     : {};
 
-  // Angular Material rules (conditional - only if @angular/material present)
-  const materialRules: Linter.RulesRecord = packagePresence.hasAngularMaterial
-    ? {
-        "@angular/material/prefix-selector": "warn",
-        "@angular/material/no-conflicting-mixins": "error",
-      }
-    : {};
+  // Note: @angular/material does not ship a standalone ESLint plugin in v3+
+  const materialRules: Linter.RulesRecord = {};
 
   // Custom angular-doctor plugin rules (always enabled)
   const pluginRules: Linter.RulesRecord = {
@@ -523,6 +518,10 @@ const buildEslintConfig = (
   };
 
   return [
+    {
+      // Exclude declaration files — they have no executable code to lint
+      ignores: ["**/*.d.ts", "**/node_modules/**", "**/dist/**", "**/.angular/**"],
+    },
     {
       files: ["**/*.ts"],
       plugins: {
@@ -641,7 +640,7 @@ export const runEslint = async (
   fs.mkdirSync(cacheRoot, { recursive: true });
   const eslint = new ESLint({
     cwd: rootDirectory,
-    overrideConfigFile: null,
+    overrideConfigFile: true,
     overrideConfig: buildEslintConfig(
       hasTypeScript,
       tsconfigPath && fs.existsSync(tsconfigPath) ? tsconfigPath : null,
