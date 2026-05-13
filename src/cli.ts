@@ -14,6 +14,9 @@ const VERSION = process.env.VERSION ?? "0.0.0";
 interface CliFlags {
   lint: boolean;
   deadCode: boolean;
+  scss: boolean;
+  circularDeps: boolean;
+  configChecks: boolean;
   verbose: boolean;
   score: boolean;
   yes: boolean;
@@ -22,7 +25,14 @@ interface CliFlags {
   fast?: boolean;
   project?: string;
   diff?: boolean | string;
+  staged?: boolean;
   rules?: string;
+  explain?: string;
+  annotations?: boolean;
+  failOn?: "error" | "warn" | "none";
+  offline?: boolean;
+  jsonCompact?: boolean;
+  json?: boolean;
 }
 
 const exitWithHint = () => {
@@ -62,6 +72,13 @@ const resolveCliScanOptions = (
     deadCode: isCliOverride("deadCode")
       ? flags.deadCode
       : (userConfig?.deadCode ?? flags.deadCode),
+    scss: isCliOverride("scss") ? flags.scss : (userConfig?.scss ?? flags.scss),
+    circularDeps: isCliOverride("circularDeps")
+      ? flags.circularDeps
+      : (userConfig?.circularDeps ?? flags.circularDeps),
+    configChecks: isCliOverride("configChecks")
+      ? flags.configChecks
+      : (userConfig?.configChecks ?? true),
     verbose: isCliOverride("verbose")
       ? Boolean(flags.verbose)
       : (userConfig?.verbose ?? false),
@@ -71,6 +88,10 @@ const resolveCliScanOptions = (
       ? Boolean(flags.fast)
       : (userConfig?.fast ?? false),
     rules: flags.rules,
+    staged: flags.staged,
+    annotations: flags.annotations,
+    failOn: flags.failOn ?? userConfig?.failOn,
+    offline: flags.offline,
   };
 };
 
@@ -130,6 +151,22 @@ const program = new Command()
     "--exit-code",
     "exit with non-zero code when ESLint errors are found (for CI integration)",
   )
+  .option("--no-scss", "skip SCSS linting")
+  .option("--no-circular-deps", "skip circular dependency detection")
+  .option("--no-config-checks", "skip angular.json/tsconfig checks")
+  .option("--staged", "scan only git-staged files (for pre-commit hooks)")
+  .option("--annotations", "emit GitHub Actions ::error/::warning annotation lines")
+  .option(
+    "--fail-on <level>",
+    "exit non-zero on error, warn, or none (default: error)",
+  )
+  .option("--offline", "skip any network calls or telemetry")
+  .option("--json", "output structured JSON report")
+  .option("--json-compact", "output compact JSON report")
+  .option(
+    "--explain <file:line>",
+    "explain why a rule fired at the given file:line location",
+  )
   .action(async (directory: string, flags: CliFlags) => {
     const isScoreOnly = flags.score;
 
@@ -153,11 +190,28 @@ const program = new Command()
         shouldSkipPrompts,
       );
 
+      // --staged: scan only git-staged files
+      if (flags.staged) {
+        const { spawnSync } = await import("node:child_process");
+        const stagedResult = spawnSync("git", ["diff", "--cached", "--name-only"], {
+          cwd: resolvedDirectory,
+          encoding: "utf-8",
+        });
+        const stagedFiles = (stagedResult.stdout ?? "")
+          .split("\n")
+          .filter((f) => f.endsWith(".ts") || f.endsWith(".html") || f.endsWith(".scss"));
+        if (stagedFiles.length === 0) {
+          if (!isScoreOnly) logger.log("No staged source files. Nothing to scan.");
+          process.exit(0);
+        }
+        if (!isScoreOnly) logger.log(`Scanning ${stagedFiles.length} staged file(s)...`);
+      }
+
       const isDiffCliOverride = program.getOptionValueSource("diff") === "cli";
-      const effectiveDiff = isDiffCliOverride ? flags.diff : userConfig?.diff;
+      const effectiveDiff = flags.staged ? false : (isDiffCliOverride ? flags.diff : userConfig?.diff);
       const explicitBaseBranch =
         typeof effectiveDiff === "string" ? effectiveDiff : undefined;
-      const diffInfo = getDiffInfo(resolvedDirectory, explicitBaseBranch);
+      const diffInfo = flags.staged ? null : getDiffInfo(resolvedDirectory, explicitBaseBranch);
       const isDiffMode = await resolveDiffMode(
         diffInfo,
         effectiveDiff,
@@ -211,7 +265,40 @@ const program = new Command()
 
         const scanResult = await scan(projectDirectory, { ...scanOptions, includePaths });
 
-        // Set exit code based on error count if --exit-code flag is set or in CI
+        // --annotations: emit GitHub Actions annotation lines
+        if (flags.annotations) {
+          for (const d of scanResult.diagnostics) {
+            const level = d.severity === "error" ? "error" : "warning";
+            process.stdout.write(
+              `::${level} file=${d.filePath},line=${d.line},col=${d.column}::${d.message} [${d.rule}]\n`,
+            );
+          }
+        }
+
+        // --json / --json-compact: emit structured JSON
+        if (flags.json || flags.jsonCompact) {
+          const report = {
+            score: scanResult.scoreResult?.score ?? 0,
+            label: scanResult.scoreResult?.label ?? "",
+            errorCount: scanResult.errorCount,
+            warningCount: scanResult.warningCount,
+            diagnostics: scanResult.diagnostics,
+          };
+          const json = flags.jsonCompact
+            ? JSON.stringify(report)
+            : JSON.stringify(report, null, 2);
+          process.stdout.write(json + "\n");
+        }
+
+        // --fail-on: controlled exit code
+        const failOn = flags.failOn ?? "error";
+        if (failOn === "error" && scanResult.errorCount > 0) {
+          process.exitCode = 1;
+        } else if (failOn === "warn" && (scanResult.errorCount > 0 || scanResult.warningCount > 0)) {
+          process.exitCode = 1;
+        }
+
+        // Legacy --exit-code flag or CI environment
         const shouldSetExitCode = flags.exitCode || isAutomatedEnvironment();
         if (shouldSetExitCode && scanResult.errorCount > 0) {
           process.exitCode = 1;

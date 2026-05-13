@@ -4,6 +4,12 @@ import { ESLint, type Linter } from "eslint";
 import angularEslintPlugin from "@angular-eslint/eslint-plugin";
 import tsEslint from "typescript-eslint";
 import type { Diagnostic, PackageJson } from "../types.js";
+import {
+  angularDoctorPlugin,
+  PLUGIN_RULE_CATEGORY_MAP,
+  PLUGIN_RULE_SEVERITY_MAP,
+  PLUGIN_RULE_HELP_MAP,
+} from "../plugin/index.js";
 
 // Extended rule category mapping (45+ rules)
 const RULE_CATEGORY_MAP: Record<string, string> = {
@@ -478,12 +484,51 @@ const buildEslintConfig = (
       }
     : {};
 
+  // Custom angular-doctor plugin rules (always enabled)
+  const pluginRules: Linter.RulesRecord = {
+    // Modernization
+    "angular-doctor/no-ngmodule": "error",
+    "angular-doctor/prefer-functional-router-guard": "warn",
+    "angular-doctor/prefer-functional-interceptor": "warn",
+    "angular-doctor/prefer-provide-http-client": "error",
+    "angular-doctor/require-provide-zoneless-change-detection": "warn",
+    // Correctness
+    "angular-doctor/no-side-effect-in-computed": "error",
+    "angular-doctor/effect-needs-cleanup": "error",
+    "angular-doctor/no-inject-outside-injection-context": "error",
+    "angular-doctor/no-async-pipe-on-signal": "error",
+    // Performance
+    "angular-doctor/no-zone-js-in-zoneless-app": "error",
+    "angular-doctor/prefer-computed-over-effect": "warn",
+    "angular-doctor/no-inline-object-on-onpush-child": "warn",
+    // Security
+    "angular-doctor/no-inner-html-binding-without-sanitizer": "error",
+    "angular-doctor/no-bypass-security-trust": "error",
+    "angular-doctor/no-eval-or-function": "error",
+    "angular-doctor/no-secrets-in-source": "error",
+    "angular-doctor/no-localstorage-token-write": "warn",
+    // Architecture
+    "angular-doctor/http-client-only-via-api-service": "warn",
+    "angular-doctor/no-barrel-files": "warn",
+    // Code Smells
+    "angular-doctor/no-large-class": "warn",
+    "angular-doctor/no-long-method": "warn",
+    "angular-doctor/no-long-parameter-list": "warn",
+    "angular-doctor/no-switch-on-type-tag": "warn",
+    "angular-doctor/no-middle-man-service": "warn",
+    "angular-doctor/no-message-chain": "warn",
+    // Patterns
+    "angular-doctor/prefer-takeuntildestroyed": "error",
+    "angular-doctor/prefer-adapter-interceptor-for-envelope": "warn",
+  };
+
   return [
     {
       files: ["**/*.ts"],
       plugins: {
         "@angular-eslint": angularEslintPlugin as unknown as ESLint.Plugin,
         "@typescript-eslint": tsEslint.plugin as unknown as ESLint.Plugin,
+        "angular-doctor": angularDoctorPlugin,
       },
       languageOptions,
       rules: {
@@ -492,6 +537,7 @@ const buildEslintConfig = (
         ...signalsRules,
         ...ngrxRules,
         ...materialRules,
+        ...pluginRules,
       },
     },
   ];
@@ -501,19 +547,19 @@ const mapEslintSeverity = (
   severity: number,
   ruleId: string | null,
 ): "error" | "warning" => {
-  if (ruleId && RULE_SEVERITY_MAP[ruleId]) {
-    return RULE_SEVERITY_MAP[ruleId];
-  }
+  if (ruleId && RULE_SEVERITY_MAP[ruleId]) return RULE_SEVERITY_MAP[ruleId];
+  if (ruleId && PLUGIN_RULE_SEVERITY_MAP[ruleId]) return PLUGIN_RULE_SEVERITY_MAP[ruleId];
   return severity === 2 ? "error" : "warning";
 };
 
 const resolveDiagnosticCategory = (ruleId: string): string =>
-  RULE_CATEGORY_MAP[ruleId] ?? "Other";
+  RULE_CATEGORY_MAP[ruleId] ?? PLUGIN_RULE_CATEGORY_MAP[ruleId] ?? "Other";
 
 const resolveMessage = (ruleId: string, defaultMessage: string): string =>
   RULE_MESSAGE_MAP[ruleId] ?? defaultMessage;
 
-const resolveHelp = (ruleId: string): string => RULE_HELP_MAP[ruleId] ?? "";
+const resolveHelp = (ruleId: string): string =>
+  RULE_HELP_MAP[ruleId] ?? PLUGIN_RULE_HELP_MAP[ruleId] ?? "";
 
 const parsePluginAndRule = (
   ruleId: string,

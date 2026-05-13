@@ -81,10 +81,17 @@ const detectAngularMaterial = (dependencies: Record<string, string>): boolean =>
   return Object.keys(dependencies).includes("@angular/material");
 };
 
-const detectSignals = (angularMajorVersion: number | null): boolean => {
-  // Angular Signals are available starting from Angular 17
-  return angularMajorVersion !== null && angularMajorVersion >= 17;
-};
+const detectSignals = (angularMajorVersion: number | null): boolean =>
+  angularMajorVersion !== null && angularMajorVersion >= 17;
+
+const detectZoneless = (angularMajorVersion: number | null): boolean =>
+  angularMajorVersion !== null && angularMajorVersion >= 18;
+
+const detectControlFlow = (angularMajorVersion: number | null): boolean =>
+  angularMajorVersion !== null && angularMajorVersion >= 17;
+
+const detectDefer = (angularMajorVersion: number | null): boolean =>
+  angularMajorVersion !== null && angularMajorVersion >= 17;
 
 const countSourceFiles = (rootDirectory: string): number => {
   const result = spawnSync("git", ["ls-files", "--cached", "--others", "--exclude-standard"], {
@@ -146,6 +153,9 @@ export const discoverProject = (directory: string): ProjectInfo => {
   const hasNgRx = detectNgRxPackages(allDeps);
   const hasAngularMaterial = detectAngularMaterial(allDeps);
   const hasSignals = detectSignals(angularMajorVersion);
+  const hasZoneless = detectZoneless(angularMajorVersion);
+  const hasControlFlow = detectControlFlow(angularMajorVersion);
+  const hasDefer = detectDefer(angularMajorVersion);
   const sourceFileCount = countSourceFiles(directory);
 
   // Use the Angular project name from angular.json if possible, otherwise from package.json
@@ -167,6 +177,9 @@ export const discoverProject = (directory: string): ProjectInfo => {
     hasNgRx,
     hasAngularMaterial,
     hasSignals,
+    hasZoneless,
+    hasControlFlow,
+    hasDefer,
     sourceFileCount,
   };
 };

@@ -40,6 +40,9 @@ import { loadConfig } from "./utils/load-config.js";
 import { logger } from "./utils/logger.js";
 import { runEslint, type FrameworkInfo, type LintError } from "./utils/run-eslint.js";
 import { runKnip } from "./utils/run-knip.js";
+import { runStylelint } from "./runners/run-stylelint.js";
+import { runMadge } from "./runners/run-madge.js";
+import { runConfigChecks } from "./runners/run-config-checks.js";
 import { spinner } from "./utils/spinner.js";
 
 interface ScoreBarSegments {
@@ -680,6 +683,10 @@ const printSummary = (
 interface ResolvedScanOptions {
   lint: boolean;
   deadCode: boolean;
+  scss: boolean;
+  circularDeps: boolean;
+  configChecks: boolean;
+  fast: boolean;
   verbose: boolean;
   scoreOnly: boolean;
   report: boolean | string | undefined;
@@ -699,6 +706,12 @@ const mergeScanOptions = (
     deadCode: fastMode
       ? false
       : (inputOptions.deadCode ?? userConfig?.deadCode ?? true),
+    scss: inputOptions.scss ?? userConfig?.scss ?? true,
+    circularDeps: fastMode
+      ? false
+      : (inputOptions.circularDeps ?? userConfig?.circularDeps ?? true),
+    configChecks: inputOptions.configChecks ?? userConfig?.configChecks ?? true,
+    fast: fastMode,
     verbose: inputOptions.verbose ?? userConfig?.verbose ?? false,
     scoreOnly: inputOptions.scoreOnly ?? false,
     report: inputOptions.report ?? false,
@@ -869,16 +882,49 @@ export const scan = async (
     }
   };
 
-  // Run lint and dead code detection in parallel for better performance
+  const runScsslint = async (): Promise<Diagnostic[]> => {
+    if (options.scss === false || options.fast) return [];
+    try {
+      const result = await runStylelint(directory);
+      return result.diagnostics;
+    } catch {
+      return [];
+    }
+  };
+
+  const runCircularDeps = async (): Promise<Diagnostic[]> => {
+    if (options.circularDeps === false || options.fast || isDiffMode) return [];
+    try {
+      const result = await runMadge(directory);
+      return result.diagnostics;
+    } catch {
+      return [];
+    }
+  };
+
+  const runConfigCheck = async (): Promise<Diagnostic[]> => {
+    if (options.configChecks === false) return [];
+    try {
+      const result = await runConfigChecks(directory);
+      return result.diagnostics;
+    } catch {
+      return [];
+    }
+  };
+
+  // Run all checks in parallel for better performance
   const parallelStartTime = performance.now();
-  const [lintDiagnostics, deadCodeDiagnostics] = await Promise.all([
+  const [lintDiagnostics, deadCodeDiagnostics, scssDiagnostics, circularDiagnostics, configDiagnostics] = await Promise.all([
     runLint(),
     runDeadCode(),
+    runScsslint(),
+    runCircularDeps(),
+    runConfigCheck(),
   ]);
   const parallelElapsed = performance.now() - parallelStartTime;
 
   // Calculate what sequential time would have been for comparison
-  const lintTime = options.lint ? parallelElapsed * 0.6 : 0; // Approximate split
+  const lintTime = options.lint ? parallelElapsed * 0.6 : 0;
   const deadCodeTime = options.deadCode && !isDiffMode ? parallelElapsed * 0.4 : 0;
   const sequentialTime = lintTime + deadCodeTime;
 
@@ -887,11 +933,11 @@ export const scan = async (
       `  Parallel scan: ${formatElapsedTime(parallelElapsed)} (sequential would be ~${formatElapsedTime(sequentialTime)})`,
     );
   }
-  const diagnostics = combineDiagnostics(
-    lintDiagnostics,
-    deadCodeDiagnostics,
-    userConfig,
-  );
+  const allExtraDiagnostics = [...scssDiagnostics, ...circularDiagnostics, ...configDiagnostics];
+  const diagnostics = [
+    ...combineDiagnostics(lintDiagnostics, deadCodeDiagnostics, userConfig),
+    ...allExtraDiagnostics,
+  ];
 
   const elapsedMilliseconds = performance.now() - startTime;
 

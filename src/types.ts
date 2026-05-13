@@ -17,6 +17,9 @@ export interface ProjectInfo {
   hasNgRx: boolean;
   hasAngularMaterial: boolean;
   hasSignals: boolean;
+  hasZoneless: boolean;
+  hasControlFlow: boolean;
+  hasDefer: boolean;
   sourceFileCount: number;
 }
 
@@ -57,12 +60,34 @@ export interface ScanResult {
 export interface ScanOptions {
   lint?: boolean;
   deadCode?: boolean;
+  scss?: boolean;
+  circularDeps?: boolean;
+  duplicates?: boolean;
+  configChecks?: boolean;
   verbose?: boolean;
   scoreOnly?: boolean;
   fast?: boolean;
   report?: boolean | string;
   includePaths?: string[];
   rules?: string;
+  staged?: boolean;
+  annotations?: boolean;
+  failOn?: "error" | "warn" | "none";
+  offline?: boolean;
+}
+
+export interface CategoryScore {
+  category: string;
+  errorRules: number;
+  warnRules: number;
+  score: number;
+}
+
+export interface SuppressedDiagnostic {
+  rule: string;
+  filePath: string;
+  line: number;
+  nearMiss?: string;
 }
 
 export interface KnipIssue {
@@ -106,9 +131,16 @@ export interface AngularDoctorConfig {
   ignore?: AngularDoctorIgnoreConfig;
   lint?: boolean;
   deadCode?: boolean;
+  scss?: boolean;
+  circularDeps?: boolean;
+  duplicates?: boolean;
+  configChecks?: boolean;
   verbose?: boolean;
   diff?: boolean | string;
   fast?: boolean;
+  failOn?: "error" | "warn" | "none";
+  scss_tokensFile?: string;
+  forbiddenImports?: string[];
 }
 
 export interface WorkspacePackage {
