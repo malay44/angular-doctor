@@ -5,6 +5,7 @@ export default defineConfig([
     entry: ["src/cli.ts"],
     format: "esm",
     dts: true,
+    inlineOnly: false,
     define: {
       "process.env.VERSION": JSON.stringify(process.env.npm_package_version ?? "0.0.0"),
     },
@@ -13,5 +14,6 @@ export default defineConfig([
     entry: ["src/index.ts"],
     format: "esm",
     dts: true,
+    inlineOnly: false,
   },
 ]);
