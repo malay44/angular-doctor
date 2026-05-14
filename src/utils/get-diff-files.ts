@@ -11,12 +11,16 @@ const getCurrentBranch = (directory: string): string | null => {
 };
 
 const getBranchChangedFiles = (directory: string, baseBranch: string): string[] => {
-  const result = spawnSync("git", ["diff", "--name-only", baseBranch], {
-    cwd: directory,
-    encoding: "utf-8",
-  });
-  if (result.status !== 0) return [];
-  return result.stdout.split("\n").filter(Boolean);
+  for (const ref of [baseBranch, `origin/${baseBranch}`]) {
+    const result = spawnSync("git", ["diff", "--name-only", ref], {
+      cwd: directory,
+      encoding: "utf-8",
+    });
+    if (result.status === 0 && result.stdout.trim()) {
+      return result.stdout.split("\n").filter(Boolean);
+    }
+  }
+  return [];
 };
 
 const getUncommittedChangedFiles = (directory: string): string[] => {
@@ -33,11 +37,14 @@ const getUncommittedChangedFiles = (directory: string): string[] => {
 };
 
 const branchExists = (directory: string, branch: string): boolean => {
-  const result = spawnSync("git", ["rev-parse", "--verify", branch], {
-    cwd: directory,
-    encoding: "utf-8",
-  });
-  return result.status === 0;
+  for (const ref of [branch, `origin/${branch}`]) {
+    const result = spawnSync("git", ["rev-parse", "--verify", ref], {
+      cwd: directory,
+      encoding: "utf-8",
+    });
+    if (result.status === 0) return true;
+  }
+  return false;
 };
 
 export const filterSourceFiles = (files: string[]): string[] =>
