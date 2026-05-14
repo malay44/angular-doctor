@@ -33,6 +33,7 @@ interface CliFlags {
   offline?: boolean;
   jsonCompact?: boolean;
   json?: boolean;
+  full?: boolean;
 }
 
 const exitWithHint = () => {
@@ -167,6 +168,7 @@ const program = new Command()
     "--explain <file:line>",
     "explain why a rule fired at the given file:line location",
   )
+  .option("--full", "scan entire codebase, ignoring uncommitted changes (overrides auto-diff)")
   .action(async (directory: string, flags: CliFlags) => {
     const isScoreOnly = flags.score;
 
@@ -208,11 +210,11 @@ const program = new Command()
       }
 
       const isDiffCliOverride = program.getOptionValueSource("diff") === "cli";
-      const effectiveDiff = flags.staged ? false : (isDiffCliOverride ? flags.diff : userConfig?.diff);
+      const effectiveDiff = (flags.full || flags.staged) ? false : (isDiffCliOverride ? flags.diff : userConfig?.diff);
       const explicitBaseBranch =
         typeof effectiveDiff === "string" ? effectiveDiff : undefined;
-      const diffInfo = flags.staged ? null : getDiffInfo(resolvedDirectory, explicitBaseBranch);
-      const isDiffMode = await resolveDiffMode(
+      const diffInfo = (flags.full || flags.staged) ? null : getDiffInfo(resolvedDirectory, explicitBaseBranch);
+      const isDiffMode = flags.full ? false : await resolveDiffMode(
         diffInfo,
         effectiveDiff,
         shouldSkipPrompts,
