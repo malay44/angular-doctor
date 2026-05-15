@@ -513,10 +513,14 @@ const buildEslintConfig = (
     "angular-doctor/no-inject-outside-injection-context": "error",
     "angular-doctor/no-async-pipe-on-signal": "error",
     "angular-doctor/no-http-call-without-catch-error": "warn",
+    "angular-doctor/no-type-guard-without-unknown-input": "error",
+    "angular-doctor/no-conditional-loading-skip": "error",
+    "angular-doctor/no-async-load-without-generation-guard": "warn",
     // Performance
     "angular-doctor/no-zone-js-in-zoneless-app": "error",
     "angular-doctor/prefer-computed-over-effect": "warn",
     "angular-doctor/no-inline-object-on-onpush-child": "warn",
+    "angular-doctor/prefer-computed-for-derived-methods": "warn",
     // Security
     "angular-doctor/no-inner-html-binding-without-sanitizer": "error",
     "angular-doctor/no-bypass-security-trust": "error",
@@ -527,10 +531,12 @@ const buildEslintConfig = (
     "angular-doctor/require-xsrf-protection": "warn",
     "angular-doctor/no-open-redirect": "error",
     "angular-doctor/no-dev-token-file": "error",
+    "angular-doctor/no-session-storage-in-service": "warn",
     // Architecture
     "angular-doctor/http-client-only-via-api-service": "warn",
     "angular-doctor/no-barrel-files": "warn",
     "angular-doctor/no-direct-store-in-feature-component": "warn",
+    "angular-doctor/no-api-types-outside-api-folder": "warn",
     // Code Smells
     "angular-doctor/no-large-class": "warn",
     "angular-doctor/no-long-method": "warn",

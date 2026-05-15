@@ -189,6 +189,77 @@ const checkHtmlDevTokenFiles = (rootDirectory: string, diagnostics: Diagnostic[]
   }
 };
 
+const LARGE_TEMPLATE_WARN_LINES = 300;
+const LARGE_TEMPLATE_ERROR_LINES = 600;
+
+const checkHtmlTemplates = (rootDirectory: string, diagnostics: Diagnostic[]): void => {
+  const srcDir = path.join(rootDirectory, "src");
+  if (!fs.existsSync(srcDir)) return;
+
+  const walk = (dir: string): void => {
+    let entries: fs.Dirent[];
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (!["node_modules", "dist", ".angular"].includes(entry.name)) walk(fullPath);
+        continue;
+      }
+      if (!entry.isFile() || !entry.name.endsWith(".component.html")) continue;
+
+      const content = fs.readFileSync(fullPath, "utf-8");
+      const lineCount = content.split("\n").length;
+      const rel = path.relative(rootDirectory, fullPath);
+
+      if (lineCount >= LARGE_TEMPLATE_ERROR_LINES) {
+        diagnostics.push({
+          filePath: rel,
+          plugin: "angular-doctor",
+          rule: "no-large-template",
+          severity: "error",
+          message: `Template is ${lineCount} lines — exceeds ${LARGE_TEMPLATE_ERROR_LINES}-line limit. Split into smaller child components.`,
+          help: "Extract sections into focused child components. A template over 300 lines is usually a sign the component does too much.",
+          line: 0,
+          column: 0,
+          category: "Code Smells",
+        });
+      } else if (lineCount >= LARGE_TEMPLATE_WARN_LINES) {
+        diagnostics.push({
+          filePath: rel,
+          plugin: "angular-doctor",
+          rule: "no-large-template",
+          severity: "warning",
+          message: `Template is ${lineCount} lines — consider splitting at ${LARGE_TEMPLATE_WARN_LINES} lines.`,
+          help: "Extract sections into focused child components. A template over 300 lines is usually a sign the component does too much.",
+          line: 0,
+          column: 0,
+          category: "Code Smells",
+        });
+      }
+
+      // [attr.src] on <iframe> — should use [src] instead
+      const lines = content.split("\n");
+      for (let i = 0; i < lines.length; i++) {
+        if (/<iframe[^>]*\[attr\.src\]/.test(lines[i])) {
+          diagnostics.push({
+            filePath: rel,
+            plugin: "angular-doctor",
+            rule: "no-attr-src-on-iframe",
+            severity: "warning",
+            message: "`<iframe [attr.src]=\"...\">` — use `[src]` instead. Angular's property binding handles DomSanitizer's `SafeResourceUrl` correctly; `[attr.src]` bypasses the trusted-URL type check.",
+            help: "Change `[attr.src]=\"url\"` to `[src]=\"url\"` and ensure the URL is sanitized with `DomSanitizer.bypassSecurityTrustResourceUrl()` if needed.",
+            line: i + 1,
+            column: lines[i].indexOf("[attr.src]") + 1,
+            category: "Correctness",
+          });
+        }
+      }
+    }
+  };
+
+  walk(srcDir);
+};
+
 const findInDirectory = (dir: string, searchString: string): boolean => {
   try {
     const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -215,6 +286,7 @@ export const runConfigChecks = async (
   checkTsConfig(rootDirectory, diagnostics);
   checkForZoneJsInAngularJson(rootDirectory, diagnostics);
   checkHtmlDevTokenFiles(rootDirectory, diagnostics);
+  checkHtmlTemplates(rootDirectory, diagnostics);
 
   return { diagnostics, skipped: false };
 };

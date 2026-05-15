@@ -18,11 +18,15 @@ import { noInjectOutsideInjectionContext } from "./rules/correctness/no-inject-o
 import { noAsyncPipeOnSignal } from "./rules/correctness/no-async-pipe-on-signal.js";
 import { noHttpCallWithoutCatchError } from "./rules/correctness/no-http-call-without-catch-error.js";
 import { noAsyncLifecycleMethod } from "./rules/correctness/no-async-lifecycle-method.js";
+import { noTypeGuardWithoutUnknownInput } from "./rules/correctness/no-type-guard-without-unknown-input.js";
+import { noConditionalLoadingSkip } from "./rules/correctness/no-conditional-loading-skip.js";
+import { noAsyncLoadWithoutGenerationGuard } from "./rules/correctness/no-async-load-without-generation-guard.js";
 
 // Performance
 import { noZoneJsInZonelessApp } from "./rules/performance/no-zone-js-in-zoneless-app.js";
 import { preferComputedOverEffect } from "./rules/performance/prefer-computed-over-effect.js";
 import { noInlineObjectOnOnPushChild } from "./rules/performance/no-inline-object-on-onpush-child.js";
+import { preferComputedForDerivedMethods } from "./rules/performance/prefer-computed-for-derived-methods.js";
 
 // Security
 import { noInnerHtmlBinding } from "./rules/security/no-inner-html-binding.js";
@@ -34,12 +38,14 @@ import { noDynamicScriptSrc } from "./rules/security/no-dynamic-script-src.js";
 import { requireXsrfProtection } from "./rules/security/require-xsrf-protection.js";
 import { noOpenRedirect } from "./rules/security/no-open-redirect.js";
 import { noDevTokenFile } from "./rules/security/no-dev-token-file.js";
+import { noSessionStorageInService } from "./rules/security/no-session-storage-in-service.js";
 
 // Architecture
 import { noHttpClientInComponent } from "./rules/architecture/no-http-client-in-component.js";
 import { noBarrelFiles } from "./rules/architecture/no-barrel-files.js";
 import { forbiddenImports } from "./rules/architecture/forbidden-imports.js";
 import { noDirectStoreInFeatureComponent } from "./rules/architecture/no-direct-store-in-feature-component.js";
+import { noApiTypesOutsideApiFolder } from "./rules/architecture/no-api-types-outside-api-folder.js";
 
 // Smells (Refactoring Guru)
 import { noLargeClass } from "./rules/smells/no-large-class.js";
@@ -73,6 +79,9 @@ export const angularDoctorPlugin = {
     "prefer-inject-fn": preferInjectFn,
 
     // Correctness
+    "no-type-guard-without-unknown-input": noTypeGuardWithoutUnknownInput,
+    "no-conditional-loading-skip": noConditionalLoadingSkip,
+    "no-async-load-without-generation-guard": noAsyncLoadWithoutGenerationGuard,
     "no-side-effect-in-computed": noSideEffectInComputed,
     "effect-needs-cleanup": effectNeedsCleanup,
     "no-inject-outside-injection-context": noInjectOutsideInjectionContext,
@@ -84,6 +93,7 @@ export const angularDoctorPlugin = {
     "no-zone-js-in-zoneless-app": noZoneJsInZonelessApp,
     "prefer-computed-over-effect": preferComputedOverEffect,
     "no-inline-object-on-onpush-child": noInlineObjectOnOnPushChild,
+    "prefer-computed-for-derived-methods": preferComputedForDerivedMethods,
 
     // Security
     "no-inner-html-binding-without-sanitizer": noInnerHtmlBinding,
@@ -95,12 +105,14 @@ export const angularDoctorPlugin = {
     "require-xsrf-protection": requireXsrfProtection,
     "no-open-redirect": noOpenRedirect,
     "no-dev-token-file": noDevTokenFile,
+    "no-session-storage-in-service": noSessionStorageInService,
 
     // Architecture
     "http-client-only-via-api-service": noHttpClientInComponent,
     "no-barrel-files": noBarrelFiles,
     "forbidden-imports": forbiddenImports,
     "no-direct-store-in-feature-component": noDirectStoreInFeatureComponent,
+    "no-api-types-outside-api-folder": noApiTypesOutsideApiFolder,
 
     // Smells
     "no-large-class": noLargeClass,
@@ -134,9 +146,13 @@ export const PLUGIN_RULE_CATEGORY_MAP: Record<string, string> = {
   "angular-doctor/no-async-pipe-on-signal": "Correctness",
   "angular-doctor/no-http-call-without-catch-error": "Correctness",
   "angular-doctor/no-async-lifecycle-method": "Correctness",
+  "angular-doctor/no-type-guard-without-unknown-input": "Correctness",
+  "angular-doctor/no-conditional-loading-skip": "Correctness",
+  "angular-doctor/no-async-load-without-generation-guard": "Correctness",
   "angular-doctor/no-zone-js-in-zoneless-app": "Performance",
   "angular-doctor/prefer-computed-over-effect": "Performance",
   "angular-doctor/no-inline-object-on-onpush-child": "Performance",
+  "angular-doctor/prefer-computed-for-derived-methods": "Performance",
   "angular-doctor/no-inner-html-binding-without-sanitizer": "Security",
   "angular-doctor/no-bypass-security-trust": "Security",
   "angular-doctor/no-eval-or-function": "Security",
@@ -146,10 +162,12 @@ export const PLUGIN_RULE_CATEGORY_MAP: Record<string, string> = {
   "angular-doctor/require-xsrf-protection": "Security",
   "angular-doctor/no-open-redirect": "Security",
   "angular-doctor/no-dev-token-file": "Security",
+  "angular-doctor/no-session-storage-in-service": "Security",
   "angular-doctor/http-client-only-via-api-service": "Architecture",
   "angular-doctor/no-barrel-files": "Architecture",
   "angular-doctor/forbidden-imports": "Architecture",
   "angular-doctor/no-direct-store-in-feature-component": "Architecture",
+  "angular-doctor/no-api-types-outside-api-folder": "Architecture",
   "angular-doctor/no-large-class": "Code Smells",
   "angular-doctor/no-long-method": "Code Smells",
   "angular-doctor/no-long-parameter-list": "Code Smells",
@@ -176,9 +194,13 @@ export const PLUGIN_RULE_SEVERITY_MAP: Record<string, "error" | "warning"> = {
   "angular-doctor/no-async-pipe-on-signal": "error",
   "angular-doctor/no-http-call-without-catch-error": "warning",
   "angular-doctor/no-async-lifecycle-method": "error",
+  "angular-doctor/no-type-guard-without-unknown-input": "error",
+  "angular-doctor/no-conditional-loading-skip": "error",
+  "angular-doctor/no-async-load-without-generation-guard": "warning",
   "angular-doctor/no-zone-js-in-zoneless-app": "error",
   "angular-doctor/prefer-computed-over-effect": "warning",
   "angular-doctor/no-inline-object-on-onpush-child": "warning",
+  "angular-doctor/prefer-computed-for-derived-methods": "warning",
   "angular-doctor/no-inner-html-binding-without-sanitizer": "error",
   "angular-doctor/no-bypass-security-trust": "error",
   "angular-doctor/no-eval-or-function": "error",
@@ -188,10 +210,12 @@ export const PLUGIN_RULE_SEVERITY_MAP: Record<string, "error" | "warning"> = {
   "angular-doctor/require-xsrf-protection": "warning",
   "angular-doctor/no-open-redirect": "error",
   "angular-doctor/no-dev-token-file": "error",
+  "angular-doctor/no-session-storage-in-service": "warning",
   "angular-doctor/http-client-only-via-api-service": "warning",
   "angular-doctor/no-barrel-files": "warning",
   "angular-doctor/forbidden-imports": "error",
   "angular-doctor/no-direct-store-in-feature-component": "warning",
+  "angular-doctor/no-api-types-outside-api-folder": "warning",
   "angular-doctor/no-large-class": "warning",
   "angular-doctor/no-long-method": "warning",
   "angular-doctor/no-long-parameter-list": "warning",
@@ -257,6 +281,8 @@ export const PLUGIN_RULE_HELP_MAP: Record<string, string> = {
     "Validate redirect URLs against an allowlist: `const SAFE = new Set(['/dashboard']); if (!SAFE.has(url)) throw new Error('unsafe redirect');`",
   "angular-doctor/no-dev-token-file":
     "Remove dev token injection files before deploying. Use server-side session setup or environment-specific auth flows instead.",
+  "angular-doctor/no-session-storage-in-service":
+    "Read primary state from the signal store. Use sessionStorage only as a write-through cache: write on store update, read only when store is unavailable (e.g. page reload before first API response).",
   "angular-doctor/http-client-only-via-api-service":
     "Create `<feature>-api.service.ts`, inject `HttpClient` there, and inject the api service in the component",
   "angular-doctor/no-barrel-files":
@@ -265,6 +291,8 @@ export const PLUGIN_RULE_HELP_MAP: Record<string, string> = {
     "Remove the forbidden import and use the approved alternative",
   "angular-doctor/no-direct-store-in-feature-component":
     "Create a `<feature>-facade.service.ts` that wraps store access, and inject the facade in the component instead.",
+  "angular-doctor/no-api-types-outside-api-folder":
+    "Move wire types to `<feature>/api/<feature>-api.types.ts`. Keep `<feature>.models.ts` for domain/view types only.",
   "angular-doctor/no-large-class":
     "Split into smaller focused classes: facade service + api service + state signal",
   "angular-doctor/no-long-method":
@@ -281,4 +309,12 @@ export const PLUGIN_RULE_HELP_MAP: Record<string, string> = {
     "Add `.pipe(takeUntilDestroyed(this.destroyRef))` before `.subscribe()`",
   "angular-doctor/prefer-adapter-interceptor-for-envelope":
     "Create an `HttpInterceptorFn` that unwraps `{ data: T }` centrally",
+  "angular-doctor/no-type-guard-without-unknown-input":
+    "Change the parameter type to `unknown`: `function isMyType(value: unknown): value is MyType { return typeof value === 'object' && value !== null && 'key' in value; }`",
+  "angular-doctor/no-conditional-loading-skip":
+    "Move `setIsLoading(false)` to an unconditional `finally` block. Express the conditional state separately: `catch { if (condition) this.store.setPartialState(); } finally { this.store.setIsLoading(false); }`",
+  "angular-doctor/no-async-load-without-generation-guard":
+    "Add: `private loadGeneration = 0;` then `const gen = ++this.loadGeneration;` at load start, and check `if (gen !== this.loadGeneration) return;` after each await.",
+  "angular-doctor/prefer-computed-for-derived-methods":
+    "Replace method with a computed signal: `readonly unitPages = computed(() => this.navPages(this.facade.units()));`",
 };
